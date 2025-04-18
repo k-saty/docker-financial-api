@@ -1,32 +1,39 @@
-version: '3.9'
+version: '3.8'
 
 services:
-  app:
-    build: .
-    ports:
-      - "8081:8081"  # Change port from 8080 to 8081
-    depends_on:
-      - db
-    environment:
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: lockyer
-      DB_USER: lockyer
-      DB_PASSWORD: password
-      SPRING_PROFILES_ACTIVE: dev
-    command: ["java", "-jar", "financial-java-api-3.1.3-SNAPSHOT.jar", "--spring.profiles.active=dev", "--spring.datasource.username=lockyer", "--spring.datasource.password=password"]
-
   db:
-    image: postgres:15
-    platform: linux/arm64
-    ports:
-      - "5432:5432"
+    image: postgres:14
+    container_name: postgres-db
     environment:
-      POSTGRES_DB: lockyer
+      POSTGRES_DB: financial
       POSTGRES_USER: lockyer
       POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - finnet
 
-volumes:
-  postgres_data:
+  app:
+    image: eclipse-temurin:17-jdk
+    container_name: financial-api
+    volumes:
+      - ./app:/app
+    working_dir: /app
+    command: >
+      sh -c "echo 'Waiting for db...';
+      sleep 10;
+      java -jar financial-java-api-3.1.3-SNAPSHOT.jar
+      --server.port=8081
+      --spring.profiles.active=dev
+      --spring.datasource.url=jdbc:postgresql://db:5432/financial
+      --spring.datasource.username=lockyer
+      --spring.datasource.password=password"
+    depends_on:
+      - db
+    ports:
+      - "8081:8081"
+    networks:
+      - finnet
+
+networks:
+  finnet:
